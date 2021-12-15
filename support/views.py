@@ -31,7 +31,7 @@ class CreateTicketView(View):
             )
 
             try:
-                ticket_service.process(ticket=new_ticket)
+                ticket_service.process(ticket_id=new_ticket.pk)
                 context.update({"done": True})
             except CompanyNotSupported as e:
                 context.update({"done": False, "error": e.message})
@@ -53,7 +53,7 @@ class ResolveTicketView(View):
 
     def post(self, request):
         ticket_pk = request.POST['ticket']
-        ticket_service.mark_as_done(ticket_id=ticket_pk)
+        ticket_service.mark_as_done(ticket_id=int(ticket_pk))
         return HttpResponseRedirect(reverse('list-tickets'))
 
 
@@ -62,5 +62,5 @@ class ReopenTicketView(View):
 
     def post(self, request):
         ticket_pk = request.POST['ticket']
-        ticket_service.set_in_progress(ticket_id=ticket_pk)
+        ticket_service.set_in_progress(ticket_id=int(ticket_pk))
         return HttpResponseRedirect(reverse('list-tickets'))
