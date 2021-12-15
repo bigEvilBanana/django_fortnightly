@@ -1,10 +1,8 @@
 from django.db import models
 
-
-class TicketStatus(models.IntegerChoices):
-    NEW = 10
-    IN_PROGRESS = 20
-    DONE = 30
+from support.constants import TicketStatus, SUPPORTED_COMPANY_DOMAINS
+from support.errors import CompanyNotSupported
+from support.utils import send_email_notification
 
 
 class StaffUser(models.Model):
@@ -25,14 +23,19 @@ class Ticket(models.Model):
         return f'{self.customer_email}: {self.issue[:30]}...'
 
     def assign(self):
-        # If this is customer from Sibedge then assign ticket to the special company manager
-        # otherwise to any random staff person
-        if self.customer_email.endswith("@sibedge.com"):
-            self.assigned_to = StaffUser.objects.get(name="SIBEDGE_Stuff")
+        customer_company = self.customer_email.split('@')[1]  # example@example.com --> example.com
+        if customer_company in SUPPORTED_COMPANY_DOMAINS:
+            # If this is customer from Sibedge then assign ticket to the special company manager
+            # otherwise to any random staff person
+            if "sibedge.com" in customer_company:
+                self.assigned_to = StaffUser.objects.get(name="SIBEDGE_Stuff")
+            else:
+                self.assigned_to = StaffUser.objects.exclude(name="SIBEDGE_Stuff").first()
+            self.save(update_fields=["assigned_to"])
         else:
-            self.assigned_to = StaffUser.objects.exclude(name="SIBEDGE_Stuff").first()
-
-        self.save(update_fields=["assigned_to"])
+            raise CompanyNotSupported(
+                "Customers from this company are not supported. Ticket created but not assigned to anyone"
+            )
 
     def process(self):
         self.assign()
@@ -49,9 +52,11 @@ class Ticket(models.Model):
 
     def notify_stuff_on_new_ticket_created(self):
         """Send email notification to stuff once new ticket created."""
-        print(f'EMAIL: You have a new ticket created. ID: {self.pk} from {self.customer_email}')
+        # TODO: этот метод относится к Ticket или StaffUser?
+        message = f'You have a new ticket created. ID: {self.pk} from {self.customer_email}'
+        send_email_notification(to=self.assigned_to.email, message=message)
 
-    @staticmethod
-    def notify_user_on_status_change(new_status: TicketStatus):
+    def notify_user_on_status_change(self, new_status: TicketStatus):
         """Send email notification to customer that status of his ticket has changed."""
-        print(f"EMAIL: The status of your ticket has changed and it's {new_status.label} now!")
+        message = f"The status of your ticket has changed and it's {new_status.label} now!"
+        send_email_notification(to=self.customer_email, message=message)

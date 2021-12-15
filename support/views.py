@@ -5,8 +5,10 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from support.constants import TicketStatus
+from support.errors import CompanyNotSupported
 from support.forms import NewTicketForm
-from support.models import Ticket, TicketStatus
+from support.models import Ticket
 
 
 class CreateTicketView(View):
@@ -17,13 +19,18 @@ class CreateTicketView(View):
     def post(self, request):
         context = {}
         form = NewTicketForm(request.POST)
+        # validation
         if form.is_valid():
+            # some business logic
             new_ticket = Ticket.objects.create(
                 customer_email=form.cleaned_data['customer_email'],
                 issue=form.cleaned_data['issue']
             )
-            new_ticket.process()
-            context.update({"done": True})
+            try:
+                new_ticket.process()
+                context.update({"done": True})
+            except CompanyNotSupported as e:
+                context.update({"done": False, "error": e.message})
         return render(request, 'support/index.html', context)
 
 

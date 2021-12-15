@@ -51,11 +51,15 @@
                             <td>{{ ticket.get_status_display }}</td>
                             <td>{{ ticket.customer_email }}</td>
                             <td>{{ ticket.issue }}</td>
-                            {% if ticket.status < 30 %}
+                            {% if ticket.status == 20 %}
                                 <td>
                                     <button name="{{ ticket.id }}" type="button"
                                             class="btn btn-success resolveButton">Mark as Resolved
                                     </button>
+                                </td>
+                                {% elif ticket.status == 10 %}
+                                <td>
+                                    Not supported yet
                                 </td>
                             {% else %}
                                 <td><button name="{{ ticket.id }}" type="button"
